@@ -1,0 +1,3 @@
+[submodule "metatoolkit"]
+	path = metatoolkit
+	url = https://github.com/theoportlock/metatoolkit
