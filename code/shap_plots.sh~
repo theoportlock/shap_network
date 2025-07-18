@@ -1,0 +1,209 @@
+#!/bin/bash
+
+# --- Configuration ---
+# Path to your SHAP plotting Python script
+PLOT_SCRIPT="code/plot_shap.py"
+
+# Input paths for SHAP values and interaction values (test set)
+SHAP_VALUES_INPUT="results/dataset_rf_shap/shap_values_test.joblib"
+SHAP_INTERACTION_VALUES_INPUT="results/dataset_rf_shap/shap_interaction_values_test.joblib"
+
+# Output directory for all generated plots
+OUTPUT_DIR="results/shap_plots_test_data"
+
+# Global plotting arguments (can be overridden per plot if needed)
+FIGSIZE="10,8" # Figure size as 'width,height'
+DPI=300        # Resolution of saved plot
+COLOR_SCHEME="viridis" # Matplotlib colormap (e.g., 'viridis', 'plasma', 'cividis', 'magma')
+
+# --- IMPORTANT: Replace these with actual feature names from your dataset ---
+# You can inspect your feature names by running:
+# python -c "import joblib; shap_exp = joblib.load('$SHAP_VALUES_INPUT'); print(shap_exp.feature_names)"
+PRIMARY_FEATURE="feature_A"     # e.g., "Age", "Feature_X"
+INTERACTION_FEATURE="feature_B" # e.g., "Gender", "Feature_Y"
+# ---------------------------------------------------------------------------
+
+# Sample index for local plots (force, waterfall, decision)
+SAMPLE_INDEX=0 # Using the first sample for demonstration
+
+# --- Script Start ---
+echo "Starting SHAP plot generation for test data..."
+echo "Output plots will be saved in: $OUTPUT_DIR"
+
+# Create the output directory if it doesn't exist
+mkdir -p "$OUTPUT_DIR" || { echo "Error: Could not create output directory $OUTPUT_DIR. Exiting."; exit 1; }
+
+# --- 1. Summary Plots (using shap_values_test.joblib) ---
+echo -e "\n--- Generating Summary Plots ---"
+
+# Beeswarm Plot
+echo "Generating Beeswarm plot..."
+"$PLOT_SCRIPT" \
+    --input "$SHAP_VALUES_INPUT" \
+    --output "$OUTPUT_DIR/beeswarm_test.pdf" \
+    --plot_type beeswarm \
+    --title "SHAP Beeswarm Plot (Test Data)" \
+    --figsize "$FIGSIZE" \
+    --dpi "$DPI" \
+    --color_scheme "$COLOR_SCHEME" \
+    --max_display 20
+
+# Summary Dot Plot
+echo "Generating Summary Dot plot..."
+"$PLOT_SCRIPT" \
+    --input "$SHAP_VALUES_INPUT" \
+    --output "$OUTPUT_DIR/summary_dot_test.pdf" \
+    --plot_type summary_dot \
+    --title "SHAP Summary Dot Plot (Test Data)" \
+    --figsize "$FIGSIZE" \
+    --dpi "$DPI" \
+    --color_scheme "$COLOR_SCHEME" \
+    --max_display 20
+
+# Summary Bar Plot
+echo "Generating Summary Bar plot..."
+"$PLOT_SCRIPT" \
+    --input "$SHAP_VALUES_INPUT" \
+    --output "$OUTPUT_DIR/summary_bar_test.pdf" \
+    --plot_type summary_bar \
+    --title "SHAP Summary Bar Plot (Test Data)" \
+    --figsize "$FIGSIZE" \
+    --dpi "$DPI" \
+    --color_scheme "$COLOR_SCHEME" \
+    --max_display 20
+
+# Summary Violin Plot
+echo "Generating Summary Violin plot..."
+"$PLOT_SCRIPT" \
+    --input "$SHAP_VALUES_INPUT" \
+    --output "$OUTPUT_DIR/summary_violin_test.pdf" \
+    --plot_type summary_violin \
+    --title "SHAP Summary Violin Plot (Test Data)" \
+    --figsize "$FIGSIZE" \
+    --dpi "$DPI" \
+    --color_scheme "$COLOR_SCHEME" \
+    --max_display 20
+
+
+# --- 2. Dependence Plots (using shap_values_test.joblib) ---
+echo -e "\n--- Generating Dependence Plots ---"
+
+echo "Generating Dependence plot for $PRIMARY_FEATURE..."
+"$PLOT_SCRIPT" \
+    --input "$SHAP_VALUES_INPUT" \
+    --output "$OUTPUT_DIR/dependence_${PRIMARY_FEATURE}_test.pdf" \
+    --plot_type dependence \
+    --feature "$PRIMARY_FEATURE" \
+    --title "SHAP Dependence Plot: $PRIMARY_FEATURE (Test Data)" \
+    --figsize "$FIGSIZE" \
+    --dpi "$DPI" \
+    --color_scheme "$COLOR_SCHEME"
+
+echo "Generating Dependence plot for $PRIMARY_FEATURE colored by $INTERACTION_FEATURE..."
+"$PLOT_SCRIPT" \
+    --input "$SHAP_VALUES_INPUT" \
+    --output "$OUTPUT_DIR/dependence_${PRIMARY_FEATURE}_by_${INTERACTION_FEATURE}_test.pdf" \
+    --plot_type dependence \
+    --feature "$PRIMARY_FEATURE" \
+    --interaction_feature "$INTERACTION_FEATURE" \
+    --title "SHAP Dependence Plot: $PRIMARY_FEATURE by $INTERACTION_FEATURE (Test Data)" \
+    --figsize "$FIGSIZE" \
+    --dpi "$DPI" \
+    --color_scheme "$COLOR_SCHEME"
+
+
+# --- 3. Local Plots (using shap_values_test.joblib) ---
+echo -e "\n--- Generating Local Plots (for sample index $SAMPLE_INDEX) ---"
+
+# Force Plot
+echo "Generating Force plot for sample $SAMPLE_INDEX..."
+"$PLOT_SCRIPT" \
+    --input "$SHAP_VALUES_INPUT" \
+    --output "$OUTPUT_DIR/force_sample_${SAMPLE_INDEX}_test.pdf" \
+    --plot_type force \
+    --index "$SAMPLE_INDEX" \
+    --title "SHAP Force Plot for Sample $SAMPLE_INDEX (Test Data)" \
+    --figsize "$FIGSIZE" \
+    --dpi "$DPI" \
+    --color_scheme "$COLOR_SCHEME"
+
+# Waterfall Plot
+echo "Generating Waterfall plot for sample $SAMPLE_INDEX..."
+"$PLOT_SCRIPT" \
+    --input "$SHAP_VALUES_INPUT" \
+    --output "$OUTPUT_DIR/waterfall_sample_${SAMPLE_INDEX}_test.pdf" \
+    --plot_type waterfall \
+    --index "$SAMPLE_INDEX" \
+    --title "SHAP Waterfall Plot for Sample $SAMPLE_INDEX (Test Data)" \
+    --figsize "$FIGSIZE" \
+    --dpi "$DPI" \
+    --color_scheme "$COLOR_SCHEME"
+
+# Decision Plot (for a single sample)
+echo "Generating Decision plot for sample $SAMPLE_INDEX..."
+"$PLOT_SCRIPT" \
+    --input "$SHAP_VALUES_INPUT" \
+    --output "$OUTPUT_DIR/decision_sample_${SAMPLE_INDEX}_test.pdf" \
+    --plot_type decision \
+    --index "$SAMPLE_INDEX" \
+    --title "SHAP Decision Plot for Sample $SAMPLE_INDEX (Test Data)" \
+    --figsize "$FIGSIZE" \
+    --dpi "$DPI" \
+    --color_scheme "$COLOR_SCHEME"
+
+# Decision Plot (for all samples - can be slow for very large datasets)
+echo "Generating Global Decision plot (all samples)..."
+"$PLOT_SCRIPT" \
+    --input "$SHAP_VALUES_INPUT" \
+    --output "$OUTPUT_DIR/decision_all_test.pdf" \
+    --plot_type decision \
+    --title "SHAP Decision Plot (All Test Samples)" \
+    --figsize "12,10" \
+    --dpi "$DPI" \
+    --color_scheme "$COLOR_SCHEME"
+
+
+# --- 4. Interaction Plots (using shap_interaction_values_test.joblib or shap_values_test.joblib) ---
+echo -e "\n--- Generating Interaction Plots ---"
+
+# Interaction Heatmap (requires shap_interaction_values)
+echo "Generating Interaction Heatmap..."
+# If 'shap_interaction_values_test.joblib' does NOT contain 'feature_names',
+# uncomment the line below and point it to a file that does (e.g., your shap_values_test.joblib
+# if it's a full Explanation object, or a separate .joblib file with just feature names).
+# --feature_names_path "results/dataset_rf_shap/shap_values_test.joblib" \
+"$PLOT_SCRIPT" \
+    --input "$SHAP_INTERACTION_VALUES_INPUT" \
+    --output "$OUTPUT_DIR/interaction_heatmap_test.pdf" \
+    --plot_type interaction_heatmap \
+    --title "Mean Absolute SHAP Interaction Values (Test Data)" \
+    --figsize "12,10" \
+    --dpi "$DPI" \
+    --color_scheme "$COLOR_SCHEME"
+
+# Interaction Scatter Plot (requires shap_values_test.joblib)
+echo "Generating Interaction Scatter plot for $PRIMARY_FEATURE vs. $INTERACTION_FEATURE..."
+"$PLOT_SCRIPT" \
+    --input "$SHAP_VALUES_INPUT" \
+    --output "$OUTPUT_DIR/interaction_scatter_${PRIMARY_FEATURE}_by_${INTERACTION_FEATURE}_test.pdf" \
+    --plot_type interaction_scatter \
+    --feature "$PRIMARY_FEATURE" \
+    --interaction_feature "$INTERACTION_FEATURE" \
+    --title "SHAP Interaction Scatter: $PRIMARY_FEATURE by $INTERACTION_FEATURE (Test Data)" \
+    --figsize "$FIGSIZE" \
+    --dpi "$DPI" \
+    --color_scheme "$COLOR_SCHEME"
+
+echo "Generating Interaction Scatter plot for $PRIMARY_FEATURE (auto-colored by strongest interaction)..."
+"$PLOT_SCRIPT" \
+    --input "$SHAP_VALUES_INPUT" \
+    --output "$OUTPUT_DIR/interaction_scatter_${PRIMARY_FEATURE}_auto_test.pdf" \
+    --plot_type interaction_scatter \
+    --feature "$PRIMARY_FEATURE" \
+    --title "SHAP Interaction Scatter: $PRIMARY_FEATURE (Auto-Colored) (Test Data)" \
+    --figsize "$FIGSIZE" \
+    --dpi "$DPI" \
+    --color_scheme "$COLOR_SCHEME"
+
+
+echo -e "\nAll SHAP plots generated successfully in $OUTPUT_DIR!"

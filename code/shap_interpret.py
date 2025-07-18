@@ -30,49 +30,40 @@ def save_tsv(df, output_path):
     df.to_csv(output_path, sep='\t', index=False)
 
 
-def compute_shap_values(model, X, label, output_dir):
+def create_explainer(model, output_dir, label):
     explainer = shap.Explainer(model, seed=42)
-    shap_values = explainer(X)
-
-    # Save raw SHAP values with joblib
-    shap_raw = {
-        "values": shap_values.values,
-        "base_values": shap_values.base_values,
-        "data": shap_values.data,
-        "feature_names": list(X.columns),
-        "sample_ids": list(X.index)
-    }
-
-    shap_path = os.path.join(output_dir, f"shap_values.joblib")
+    explainer_path = os.path.join(output_dir, f"explainer_{label}.joblib")
     os.makedirs(output_dir, exist_ok=True)
-    joblib.dump(shap_raw, shap_path)
-    print(f"✅ Saved raw SHAP values with feature names to {shap_path}")
+    joblib.dump(explainer, explainer_path)
+    print(f"Saved SHAP explainer to {explainer_path}")
+    return explainer
 
-    # Save mean absolute SHAP values
+
+def compute_shap_values(explainer, X, label, output_dir):
+    shap_values = explainer(X)
+    shap_path = os.path.join(output_dir, f"shap_values_{label}.joblib")
+    joblib.dump(shap_values, shap_path)
+    print(f"Saved SHAP values to {shap_path}")
+
     mean_abs_shap = pd.DataFrame(
         np.abs(shap_values.values).mean(axis=0),
         index=X.columns,
-        columns=[f"mean_abs_shap"]
+        columns=[f"{label}_mean_abs_shap"]
     )
-    mean_abs_path = os.path.join(output_dir, f"mean_abs_shap.tsv")
+    mean_abs_path = os.path.join(output_dir, f"mean_abs_shap_{label}.tsv")
     save_tsv(mean_abs_shap.reset_index().rename(columns={"index": "feature"}), mean_abs_path)
-    print(f"✅ Saved {mean_abs_path}")
+    print(f"Saved {mean_abs_path}")
 
 
-def compute_shap_interactions(model, X, label, output_dir):
-    explainer = shap.Explainer(model)
+def compute_shap_interactions(explainer, X, label, output_dir):
     shap_inter = explainer.shap_interaction_values(X)
+    inter_path = os.path.join(output_dir, f"shap_interaction_values_{label}.joblib")
+    joblib.dump(shap_inter, inter_path)
+    print(f"Saved SHAP interaction values to {inter_path}")
 
-    inter_path = os.path.join(output_dir, f"shap_interaction_values.joblib")
-    os.makedirs(output_dir, exist_ok=True)
-    joblib.dump(inter_raw, inter_path)
-    print(f"✅ Saved raw SHAP interaction values with feature names to {inter_path}")
-
-    # Mean absolute interaction matrix
     mean_abs_inter = np.abs(shap_inter).mean(axis=0)
     inter_df = pd.DataFrame(mean_abs_inter, index=X.columns, columns=X.columns)
 
-    # Stack to long format and symmetrize
     long_df = inter_df.stack().reset_index()
     long_df.columns = ["feature1", "feature2", "mean_abs_weight"]
     long_df[["source", "target"]] = np.sort(long_df[["feature1", "feature2"]].values, axis=1)
@@ -85,9 +76,9 @@ def compute_shap_interactions(model, X, label, output_dir):
     total = grouped["mean_abs_weight"].sum()
     grouped["relative_importance"] = grouped["mean_abs_weight"] / total if total > 0 else 0.0
 
-    output_file = os.path.join(output_dir, f"mean_abs_shap_interaction.tsv")
+    output_file = os.path.join(output_dir, f"mean_abs_shap_interaction_{label}.tsv")
     save_tsv(grouped, output_file)
-    print(f"✅ Saved {output_file}")
+    print(f"Saved {output_file}")
 
 
 def main():
@@ -96,14 +87,17 @@ def main():
 
     for split in ["train", "test"]:
         x_path = Path(args.input_dir) / f"X_{split}.tsv"
-        if x_path.exists():
-            X = load_tsv(x_path)
-            if args.shap_val:
-                compute_shap_values(model, X, label=split, output_dir=args.output_dir)
-            if args.shap_interact:
-                compute_shap_interactions(model, X, label=split, output_dir=args.output_dir)
-        else:
-            print(f"⚠️ Skipping: {x_path} not found")
+        if not x_path.exists():
+            print(f"Skipping: {x_path} not found")
+            continue
+
+        X = load_tsv(x_path)
+
+        explainer = create_explainer(model, args.output_dir, label=split)
+        if args.shap_val:
+            compute_shap_values(explainer, X, label=split, output_dir=args.output_dir)
+        if args.shap_interact:
+            compute_shap_interactions(explainer, X, label=split, output_dir=args.output_dir)
 
 
 if __name__ == "__main__":

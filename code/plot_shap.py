@@ -1,146 +1,124 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
+#!/usr/bin/env python
 import argparse
-import os
 import joblib
-import numpy as np
-import pandas as pd
 import shap
 import matplotlib.pyplot as plt
-import seaborn as sns
+import numpy as np
+import os
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="Plot SHAP values (summary, force, decision, interaction, etc.)")
-    parser.add_argument("--input", type=str, required=True, help="Path to .joblib SHAP value or interaction file")
-    parser.add_argument("--output", type=str, required=True, help="Path to save output plot (e.g., .png)")
-    parser.add_argument("--plot_type", type=str, required=True,
-                        choices=["summary_dot", "summary_bar", "summary_violin", "dependence",
-                                 "force", "waterfall", "decision", "interaction_heatmap"],
-                        help="Type of SHAP plot to generate")
-    parser.add_argument("--index", type=int, help="Row index (sample) for local plots (force, waterfall, decision)")
-    parser.add_argument("--feature", type=str, help="Feature name for dependence plot")
-    parser.add_argument("--interaction_feature", type=str, help="Second feature to color dependence plot")
-    parser.add_argument("--max_display", type=int, default=20, help="Max features to display in summary plots")
-    return parser.parse_args()
+def load_shap_data(input_path):
+    data = joblib.load(input_path)
+
+    if isinstance(data, shap.Explanation):
+        return data
+
+    raise ValueError("Expected SHAP Explanation object. Got: {}".format(type(data)))
 
 
-def load_shap_explanation(shap_data):
-    return shap.Explanation(
-        values=shap_data["values"],
-        base_values=shap_data.get("base_values", None),
-        data=shap_data["data"],
-        feature_names=shap_data["feature_names"]
-    )
-
-
-def plot_summary(shap_exp, plot_type, output, max_display):
-    shap.summary_plot(shap_exp, plot_type=plot_type.split("_")[1], max_display=max_display, show=False)
+def plot_summary(shap_data, output_path, max_display):
+    shap.plots.beeswarm(shap_data, max_display=max_display, show=False)
     plt.tight_layout()
-    plt.savefig(output)
-    print(f"✅ Saved {plot_type} plot to {output}")
+    plt.savefig(output_path, dpi=300)
+    plt.close()
+    print(f"✓ Saved summary plot to {output_path}")
 
 
-def plot_violin(shap_exp, output, max_display):
-    shap.summary_plot(shap_exp, plot_type="violin", max_display=max_display, show=False)
+def plot_bar(shap_data, output_path, max_display):
+    shap.plots.bar(shap_data, max_display=max_display, show=False)
     plt.tight_layout()
-    plt.savefig(output)
-    print(f"✅ Saved summary_violin plot to {output}")
+    plt.savefig(output_path, dpi=300)
+    plt.close()
+    print(f"✓ Saved bar plot to {output_path}")
 
 
-def plot_dependence(shap_exp, feature, interaction_feature, output):
-    shap.dependence_plot(
-        ind=feature,
-        shap_values=shap_exp,
-        interaction_index=interaction_feature,
+def plot_heatmap(shap_data, output_path, max_display):
+    shap.plots.heatmap(shap_data, max_display=max_display, show=False)
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300)
+    plt.close()
+    print(f"✓ Saved heatmap to {output_path}")
+
+
+def plot_waterfall(shap_data, sample_index, output_path):
+    shap.plots.waterfall(shap_data[sample_index], show=False)
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300)
+    plt.close()
+    print(f"✓ Saved waterfall plot for sample {sample_index} to {output_path}")
+
+
+def plot_force(shap_data, sample_index, output_path):
+    shap.plots.force(shap_data[sample_index], matplotlib=True, show=False)
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300)
+    plt.close()
+    print(f"✓ Saved force plot for sample {sample_index} to {output_path}")
+
+
+def plot_decision(shap_data, sample_index, output_path):
+    if not isinstance(shap_data, shap.Explanation):
+        raise ValueError("Expected shap_data to be a shap.Explanation object")
+
+    expected_value = shap_data.base_values
+    if isinstance(expected_value, (list, np.ndarray)) and len(expected_value) > 1:
+        expected_value = expected_value[1]
+
+    features = shap_data.data
+    shap_values = shap_data.values
+
+    shap.decision_plot(
+        base_value=expected_value,
+        shap_values=shap_values,
+        features=features,
+        feature_names=shap_data.feature_names,
         show=False
     )
+
     plt.tight_layout()
-    plt.savefig(output)
-    print(f"✅ Saved dependence plot to {output}")
+    plt.savefig(output_path, dpi=300)
+    plt.close()
+    print(f"✓ Saved decision plot to {output_path}")
 
 
-def plot_force(shap_exp, index, output):
-    force_plot = shap.plots.force(shap_exp[index], matplotlib=True, show=False)
+def plot_interaction_scatter(shap_data, output_path):
+    shap.plots.scatter(shap_data, show=False)
     plt.tight_layout()
-    plt.savefig(output, bbox_inches="tight")
-    print(f"✅ Saved force plot for index {index} to {output}")
-
-
-def plot_waterfall(shap_exp, index, output):
-    shap.plots.waterfall(shap_exp[index], show=False)
-    plt.tight_layout()
-    plt.savefig(output, bbox_inches="tight")
-    print(f"✅ Saved waterfall plot for index {index} to {output}")
-
-
-def plot_decision(shap_exp, index, output):
-    if index is not None:
-        shap.plots.decision(shap_exp[index], show=False)
-        print(f"✅ Saved decision plot for index {index} to {output}")
-    else:
-        shap.plots.decision(shap_exp, show=False)
-        print(f"✅ Saved decision plot for all instances to {output}")
-    plt.tight_layout()
-    plt.savefig(output, bbox_inches="tight")
-
-
-def plot_interaction_heatmap(shap_data, output):
-    interaction_values = shap_data["interaction_values"]
-    feature_names = shap_data["feature_names"]
-
-    mean_abs = np.abs(interaction_values).mean(axis=0)
-    df = pd.DataFrame(mean_abs, index=feature_names, columns=feature_names)
-
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(df, cmap="viridis", square=True, cbar_kws={"label": "Mean |Interaction SHAP|"})
-    plt.title("Mean Absolute SHAP Interaction Values")
-    plt.tight_layout()
-    plt.savefig(output)
-    print(f"✅ Saved SHAP interaction heatmap to {output}")
+    plt.savefig(output_path, dpi=300)
+    plt.close()
+    print(f"✓ Saved interaction scatter plot to {output_path}")
 
 
 def main():
-    args = parse_args()
-    shap_data = joblib.load(args.input)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", required=True, help="Path to input SHAP values .joblib")
+    parser.add_argument("--output", required=True, help="Path to save the plot")
+    parser.add_argument("--plot_type", required=True, help="Type of SHAP plot")
+    parser.add_argument("--sample_index", type=int, default=0, help="Sample index for individual plots")
+    parser.add_argument("--max_display", type=int, default=10, help="Maximum features to display")
 
-    if args.plot_type == "interaction_heatmap":
-        if "interaction_values" not in shap_data:
-            raise ValueError("Input file does not contain SHAP interaction values.")
-        plot_interaction_heatmap(shap_data, args.output)
-        return
+    args = parser.parse_args()
 
-    if "values" not in shap_data:
-        raise ValueError("Input file does not contain SHAP values.")
-    shap_exp = load_shap_explanation(shap_data)
+    shap_data = load_shap_data(args.input)
 
-    if args.plot_type.startswith("summary"):
-        if args.plot_type == "summary_violin":
-            plot_violin(shap_exp, args.output, args.max_display)
-        else:
-            plot_summary(shap_exp, args.plot_type, args.output, args.max_display)
-
-    elif args.plot_type == "dependence":
-        if not args.feature:
-            raise ValueError("--feature must be provided for dependence plot.")
-        plot_dependence(shap_exp, args.feature, args.interaction_feature, args.output)
-
-    elif args.plot_type == "force":
-        if args.index is None:
-            raise ValueError("--index is required for force plot.")
-        plot_force(shap_exp, args.index, args.output)
-
+    if args.plot_type == "summary":
+        plot_summary(shap_data, args.output, args.max_display)
+    elif args.plot_type == "bar":
+        plot_bar(shap_data, args.output, args.max_display)
+    elif args.plot_type == "heatmap":
+        plot_heatmap(shap_data, args.output, args.max_display)
+    elif args.plot_type == "interaction_heatmap":
+        plot_interaction_heatmap(shap_data, args.output, args.max_display)
     elif args.plot_type == "waterfall":
-        if args.index is None:
-            raise ValueError("--index is required for waterfall plot.")
-        plot_waterfall(shap_exp, args.index, args.output)
-
+        plot_waterfall(shap_data, args.sample_index, args.output)
+    elif args.plot_type == "force":
+        plot_force(shap_data, args.sample_index, args.output)
     elif args.plot_type == "decision":
-        plot_decision(shap_exp, args.index, args.output)
-
+        plot_decision(shap_data, args.sample_index, args.output)
+    elif args.plot_type == "interaction_scatter":
+        plot_interaction_scatter(shap_data, args.output)
     else:
-        raise ValueError(f"Unknown plot type: {args.plot_type}")
+        raise ValueError(f"Unsupported plot type: {args.plot_type}")
 
 
 if __name__ == "__main__":

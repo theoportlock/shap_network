@@ -4,7 +4,7 @@
 # Theo Portlock
 
 set +e
-set -x
+#set -x
 
 source ~/venv/bin/activate
 export PATH="code/:$PATH"
@@ -46,7 +46,7 @@ shap_interpret.py \
 
 merge.py \
 	results/theoretical_variance/interaction_importance.tsv \
-	results/dataset_rf_shap/mean_abs_shap_interaction_test_edgelist.tsv \
+	results/dataset_rf_shap/mean_abs_shap_interaction_test.tsv \
 	-a \
 	--add-filename \
 	-o results/merged_interactions.tsv
@@ -57,16 +57,16 @@ plot.py
 
 explorer.exe $(wslpath -w results/plot.pdf)
 
-#create_network.py \
-	#--edges results/format_merged_interactions.tsv \
-	#--output results/network.graphml
+create_network.py \
+	--edges results/format_merged_interactions.tsv \
+	--output results/network.graphml
 
-#plot_network.py \
-#	results/network.graphml \
-#	--edge_color_attr interaction_importance.tsv \
-#	--layout shell \
-#	--cmap Reds \
-#	--figsize 4 4 \
-#	--output results/network.svg
+plot_network.py \
+	results/network.graphml \
+	--edge_color_attr mean_abs_shap_interaction_test.tsv \
+	--layout shell \
+	--cmap Reds \
+	--figsize 4 4 \
+	--output results/network2.svg
 
 #explorer.exe $(wslpath -w results/network.svg)

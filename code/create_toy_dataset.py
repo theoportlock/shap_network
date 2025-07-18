@@ -25,7 +25,7 @@ def create_dataset(formula_str, n, seed, target):
     vars_in_formula = sorted({str(s) for s in expr.free_symbols})
 
     features = {
-        v: np.random.uniform(0, 1, n)
+        v: np.random.uniform(-1, 1, n)
         for v in vars_in_formula
     }
 
