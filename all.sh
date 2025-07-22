@@ -6,7 +6,7 @@
 set +e
 #set -x
 
-source ~/venv/bin/activate
+source venv/bin/activate
 export PATH="code/:$PATH"
 export PATH="metatoolkit/metatoolkit/:$PATH"
 
