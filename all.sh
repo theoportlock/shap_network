@@ -4,7 +4,6 @@
 # Theo Portlock
 
 set +e
-#set -x
 
 source venv/bin/activate
 export PATH="code/:$PATH"
@@ -55,8 +54,6 @@ format_merged.py
 
 plot.py
 
-explorer.exe $(wslpath -w results/plot.pdf)
-
 create_network.py \
 	--edges results/format_merged_interactions.tsv \
 	--output results/network.graphml
@@ -68,8 +65,6 @@ plot_network.py \
 	--cmap Reds \
 	--figsize 4 4 \
 	--output results/network2.svg
-
-explorer.exe $(wslpath -w results/network2.svg)
 
 shap_plots.sh
 
