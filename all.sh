@@ -69,4 +69,12 @@ plot_network.py \
 	--figsize 4 4 \
 	--output results/network2.svg
 
-#explorer.exe $(wslpath -w results/network.svg)
+explorer.exe $(wslpath -w results/network2.svg)
+
+shap_plots.sh
+
+arrange_svgs.py \
+	results/shap_plots_test_data/* \
+	--cols 2 \
+	--output results/shap_plots_merged.svg
+
